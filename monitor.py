@@ -30,8 +30,8 @@ class BatteryMonitor:
         try:
             read = self.bus.read_word_data(self.address, 4)
             swapped = struct.unpack("<H", struct.pack(">H", read))[0]
-            capacity = min(swapped / 256, 99)
-            return int(capacity)
+            capacity = swapped / 256
+            return round(capacity)  # Round to the nearest whole number
         except Exception as e:
             logging.error("Error reading capacity: %s", e)
             return None
@@ -40,7 +40,7 @@ class BatteryMonitor:
 def prepare_readCapacity(battery_monitor):
     capacity = battery_monitor.readCapacity()
     capacity_left_digit = capacity // 100
-    capacity_middle_digit = capacity // 10
+    capacity_middle_digit = (capacity % 100) // 10
     capacity_right_digit = capacity % 10
     return capacity_left_digit, capacity_middle_digit, capacity_right_digit
 

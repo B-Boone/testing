@@ -6,104 +6,112 @@ import json
 import os
 
 class LEDDisplay:
-    REFRESH_RATE = 0.0005
+    REFRESH_RATE = 0.0001
     BATTERY_FILE_PATH = 'battery.json'
 
     def __init__(self):
         self.pins = {
-            'Pin1': 17, 'Pin2': 27, 'Pin3': 22, 'Pin4': 23, 'Pin5': 24, 'Pin6': 25, 'Pin7': 5, 'Pin8': 6,
+            'Pin1': 17, 'Pin2': 27, 'Pin3': 22, 'Pin4': 23, 'Pin5': 24, 'Pin6': 25, 'Pin7': 13, 'Pin8': 16,
         }
         self.setup_gpio()
 
-        self.left_number = [0]
-        self.right_number = [0]
-        self.percent_symbol = ['off']
-        self.indicator_light = ['off']
+        self.voltage_bar = ['off']
+        self.capacity_left_digit = [0]
+        self.capacity_middle_digit = [0]
+        self.capacity_right_digit = [0]
+        self.misc_lights = ['off']
+        self.usage_arrow = ['off']
+        self.temp_left_digit = [0]
+        self.temp_middle_digit = [0]
+        self.temp_right_digit = [0]
+        self.ram_bar = ['off']
+        
         self.stop_event = Event()
 
         # Define segment control mappings for a multiplexed display
         self.segment_mappings = {
             'voltage_bar': {
                 'off': [],
-                'one': [(self.pins['Pin1'], self.pins['Pin5'])],
-                'two': [(self.pins['Pin2'], self.pins['Pin5'])],
-                'three': [(self.pins['Pin3'], self.pins['Pin5'])],
-                'four': [(self.pins['Pin4'], self.pins['Pin5'])],
-                'five': [(self.pins['Pin6'], self.pins['Pin5'])],
-                'six': [(self.pins['Pin7'], self.pins['Pin5'])]
+                'one': [(self.pins['Pin1'], self.pins['Pin8'])],
+                'two': [(self.pins['Pin2'], self.pins['Pin8']), (self.pins['Pin1'], self.pins['Pin8'])],
+                'three': [(self.pins['Pin3'], self.pins['Pin8']), (self.pins['Pin2'], self.pins['Pin8']), (self.pins['Pin1'], self.pins['Pin8'])],
+                'four': [(self.pins['Pin4'], self.pins['Pin8']), (self.pins['Pin3'], self.pins['Pin8']), (self.pins['Pin2'], self.pins['Pin8']), (self.pins['Pin1'], self.pins['Pin8'])],
+                'five': [(self.pins['Pin7'], self.pins['Pin8']), (self.pins['Pin4'], self.pins['Pin8']), (self.pins['Pin3'], self.pins['Pin8']), (self.pins['Pin2'], self.pins['Pin8']), (self.pins['Pin1'], self.pins['Pin8'])],
+                'six': [(self.pins['Pin5'], self.pins['Pin8']), (self.pins['Pin7'], self.pins['Pin8']), (self.pins['Pin4'], self.pins['Pin8']), (self.pins['Pin3'], self.pins['Pin8']), (self.pins['Pin2'], self.pins['Pin8']), (self.pins['Pin1'], self.pins['Pin8'])]
             },
             'capacity_left_digit': {
-                'zero': [],
-                'one': [(self.pins['Pin2'], self.pins['Pin6']), (self.pins['Pin3'], self.pins['Pin6'])]
+                0: [],
+                1: [(self.pins['Pin2'], self.pins['Pin7']), (self.pins['Pin3'], self.pins['Pin7'])]
             },
             'capacity_middle_digit': {
-                0: [(self.pins['Pin2'], self.pins['Pin1']), (self.pins['Pin3'], self.pins['Pin1']), (self.pins['Pin4'], self.pins['Pin1']), (self.pins['Pin5'], self.pins['Pin1']), (self.pins['Pin6'], self.pins['Pin1']), (self.pins['Pin7'], self.pins['Pin1'])],
+                0: [(self.pins['Pin2'], self.pins['Pin1']), (self.pins['Pin3'], self.pins['Pin1']), (self.pins['Pin4'], self.pins['Pin1']), (self.pins['Pin8'], self.pins['Pin1']), (self.pins['Pin7'], self.pins['Pin1']), (self.pins['Pin5'], self.pins['Pin1'])],
                 1: [(self.pins['Pin3'], self.pins['Pin1']), (self.pins['Pin4'], self.pins['Pin1'])],
-                2: [(self.pins['Pin2'], self.pins['Pin1']), (self.pins['Pin3'], self.pins['Pin1']), (self.pins['Pin5'], self.pins['Pin1']), (self.pins['Pin7'], self.pins['Pin1']), (self.pins['Pin8'], self.pins['Pin1'])],
-                3: [(self.pins['Pin2'], self.pins['Pin1']), (self.pins['Pin3'], self.pins['Pin1']), (self.pins['Pin4'], self.pins['Pin1']), (self.pins['Pin5'], self.pins['Pin1']), (self.pins['Pin8'], self.pins['Pin1'])],
-                4: [(self.pins['Pin3'], self.pins['Pin1']), (self.pins['Pin4'], self.pins['Pin1']), (self.pins['Pin7'], self.pins['Pin1']), (self.pins['Pin8'], self.pins['Pin1'])],
-                5: [(self.pins['Pin2'], self.pins['Pin1']), (self.pins['Pin4'], self.pins['Pin1']), (self.pins['Pin5'], self.pins['Pin1']), (self.pins['Pin7'], self.pins['Pin1']), (self.pins['Pin8'], self.pins['Pin1'])],
-                6: [(self.pins['Pin2'], self.pins['Pin1']), (self.pins['Pin4'], self.pins['Pin1']), (self.pins['Pin5'], self.pins['Pin1']), (self.pins['Pin6'], self.pins['Pin1']), (self.pins['Pin7'], self.pins['Pin1']), (self.pins['Pin8'], self.pins['Pin1'])],
+                2: [(self.pins['Pin2'], self.pins['Pin1']), (self.pins['Pin3'], self.pins['Pin1']), (self.pins['Pin8'], self.pins['Pin1']), (self.pins['Pin7'], self.pins['Pin1']), (self.pins['Pin6'], self.pins['Pin1'])],
+                3: [(self.pins['Pin2'], self.pins['Pin1']), (self.pins['Pin3'], self.pins['Pin1']), (self.pins['Pin4'], self.pins['Pin1']), (self.pins['Pin8'], self.pins['Pin1']), (self.pins['Pin6'], self.pins['Pin1'])],
+                4: [(self.pins['Pin3'], self.pins['Pin1']), (self.pins['Pin4'], self.pins['Pin1']), (self.pins['Pin5'], self.pins['Pin1']), (self.pins['Pin6'], self.pins['Pin1'])],
+                5: [(self.pins['Pin2'], self.pins['Pin1']), (self.pins['Pin4'], self.pins['Pin1']), (self.pins['Pin8'], self.pins['Pin1']), (self.pins['Pin7'], self.pins['Pin1']), (self.pins['Pin6'], self.pins['Pin1'])],
+                6: [(self.pins['Pin2'], self.pins['Pin1']), (self.pins['Pin4'], self.pins['Pin1']), (self.pins['Pin8'], self.pins['Pin1']), (self.pins['Pin7'], self.pins['Pin1']), (self.pins['Pin5'], self.pins['Pin1']), (self.pins['Pin6'], self.pins['Pin1'])],
                 7: [(self.pins['Pin2'], self.pins['Pin1']), (self.pins['Pin3'], self.pins['Pin1']), (self.pins['Pin4'], self.pins['Pin1'])],
-                8: [(self.pins['Pin2'], self.pins['Pin1']), (self.pins['Pin3'], self.pins['Pin1']), (self.pins['Pin4'], self.pins['Pin1']), (self.pins['Pin5'], self.pins['Pin1']), (self.pins['Pin6'], self.pins['Pin1']), (self.pins['Pin7'], self.pins['Pin1']), (self.pins['Pin8'], self.pins['Pin1'])],
-                9: [(self.pins['Pin2'], self.pins['Pin1']), (self.pins['Pin3'], self.pins['Pin1']), (self.pins['Pin4'], self.pins['Pin1']), (self.pins['Pin5'], self.pins['Pin1']), (self.pins['Pin7'], self.pins['Pin1']), (self.pins['Pin8'], self.pins['Pin1'])]
+                8: [(self.pins['Pin2'], self.pins['Pin1']), (self.pins['Pin3'], self.pins['Pin1']), (self.pins['Pin4'], self.pins['Pin1']), (self.pins['Pin8'], self.pins['Pin1']), (self.pins['Pin7'], self.pins['Pin1']), (self.pins['Pin5'], self.pins['Pin1']), (self.pins['Pin6'], self.pins['Pin1'])],
+                9: [(self.pins['Pin2'], self.pins['Pin1']), (self.pins['Pin3'], self.pins['Pin1']), (self.pins['Pin4'], self.pins['Pin1']), (self.pins['Pin8'], self.pins['Pin1']), (self.pins['Pin5'], self.pins['Pin1']), (self.pins['Pin6'], self.pins['Pin1'])]
             },
             'capacity_right_digit': {
-                0: [(self.pins['Pin1'], self.pins['Pin2']), (self.pins['Pin3'], self.pins['Pin2']), (self.pins['Pin4'], self.pins['Pin2']), (self.pins['Pin5'], self.pins['Pin2']), (self.pins['Pin6'], self.pins['Pin1']), (self.pins['Pin7'], self.pins['Pin4'])],
+                0: [(self.pins['Pin1'], self.pins['Pin2']), (self.pins['Pin3'], self.pins['Pin2']), (self.pins['Pin4'], self.pins['Pin2']), (self.pins['Pin8'], self.pins['Pin2']), (self.pins['Pin7'], self.pins['Pin1']), (self.pins['Pin5'], self.pins['Pin4'])],
                 1: [(self.pins['Pin3'], self.pins['Pin2']), (self.pins['Pin4'], self.pins['Pin2'])],
-                2: [(self.pins['Pin1'], self.pins['Pin2']), (self.pins['Pin3'], self.pins['Pin2']), (self.pins['Pin5'], self.pins['Pin2']), (self.pins['Pin6'], self.pins['Pin2']), (self.pins['Pin8'], self.pins['Pin2'])],
-                3: [(self.pins['Pin1'], self.pins['Pin2']), (self.pins['Pin3'], self.pins['Pin2']), (self.pins['Pin4'], self.pins['Pin2']), (self.pins['Pin5'], self.pins['Pin2']), (self.pins['Pin8'], self.pins['Pin2'])],
-                4: [(self.pins['Pin3'], self.pins['Pin2']), (self.pins['Pin4'], self.pins['Pin2']), (self.pins['Pin7'], self.pins['Pin2']), (self.pins['Pin8'], self.pins['Pin2'])],
-                5: [(self.pins['Pin1'], self.pins['Pin2']), (self.pins['Pin4'], self.pins['Pin2']), (self.pins['Pin5'], self.pins['Pin2']), (self.pins['Pin7'], self.pins['Pin2']), (self.pins['Pin8'], self.pins['Pin2'])],
-                6: [(self.pins['Pin1'], self.pins['Pin2']), (self.pins['Pin4'], self.pins['Pin2']), (self.pins['Pin5'], self.pins['Pin2']), (self.pins['Pin6'], self.pins['Pin2']), (self.pins['Pin7'], self.pins['Pin2']), (self.pins['Pin8'], self.pins['Pin2'])],
+                2: [(self.pins['Pin1'], self.pins['Pin2']), (self.pins['Pin3'], self.pins['Pin2']), (self.pins['Pin8'], self.pins['Pin2']), (self.pins['Pin7'], self.pins['Pin2']), (self.pins['Pin6'], self.pins['Pin2'])],
+                3: [(self.pins['Pin1'], self.pins['Pin2']), (self.pins['Pin3'], self.pins['Pin2']), (self.pins['Pin4'], self.pins['Pin2']), (self.pins['Pin8'], self.pins['Pin2']), (self.pins['Pin6'], self.pins['Pin2'])],
+                4: [(self.pins['Pin3'], self.pins['Pin2']), (self.pins['Pin4'], self.pins['Pin2']), (self.pins['Pin5'], self.pins['Pin2']), (self.pins['Pin6'], self.pins['Pin2'])],
+                5: [(self.pins['Pin1'], self.pins['Pin2']), (self.pins['Pin4'], self.pins['Pin2']), (self.pins['Pin8'], self.pins['Pin2']), (self.pins['Pin5'], self.pins['Pin2']), (self.pins['Pin6'], self.pins['Pin2'])],
+                6: [(self.pins['Pin1'], self.pins['Pin2']), (self.pins['Pin4'], self.pins['Pin2']), (self.pins['Pin8'], self.pins['Pin2']), (self.pins['Pin7'], self.pins['Pin2']), (self.pins['Pin5'], self.pins['Pin2']), (self.pins['Pin6'], self.pins['Pin2'])],
                 7: [(self.pins['Pin1'], self.pins['Pin2']), (self.pins['Pin3'], self.pins['Pin2']), (self.pins['Pin4'], self.pins['Pin2'])],
-                8: [(self.pins['Pin1'], self.pins['Pin2']), (self.pins['Pin3'], self.pins['Pin2']), (self.pins['Pin4'], self.pins['Pin2']), (self.pins['Pin5'], self.pins['Pin2']), (self.pins['Pin6'], self.pins['Pin2']), (self.pins['Pin7'], self.pins['Pin2']), (self.pins['Pin8'], self.pins['Pin2'])],
-                9: [(self.pins['Pin1'], self.pins['Pin2']), (self.pins['Pin3'], self.pins['Pin2']), (self.pins['Pin4'], self.pins['Pin2']), (self.pins['Pin5'], self.pins['Pin2']), (self.pins['Pin7'], self.pins['Pin2']), (self.pins['Pin8'], self.pins['Pin2'])]
+                8: [(self.pins['Pin1'], self.pins['Pin2']), (self.pins['Pin3'], self.pins['Pin2']), (self.pins['Pin4'], self.pins['Pin2']), (self.pins['Pin8'], self.pins['Pin2']), (self.pins['Pin7'], self.pins['Pin2']), (self.pins['Pin5'], self.pins['Pin2']), (self.pins['Pin6'], self.pins['Pin2'])],
+                9: [(self.pins['Pin1'], self.pins['Pin2']), (self.pins['Pin3'], self.pins['Pin2']), (self.pins['Pin4'], self.pins['Pin2']), (self.pins['Pin8'], self.pins['Pin2']), (self.pins['Pin5'], self.pins['Pin2']), (self.pins['Pin6'], self.pins['Pin2'])]
             },
             'misc_lights': {
-                'on': [(self.pins['Pin8'], self.pins['Pin5']), (self.pins['Pin1'], self.pins['Pin6']), (self.pins['Pin1'], self.pins['Pin7']), (self.pins['Pin2'], self.pins['Pin7']), (self.pins['Pin5'], self.pins['Pin7']), (self.pins['Pin6'], self.pins['Pin7']), (self.pins['Pin7'], self.pins['Pin8'])],
+                'on': [(self.pins['Pin6'], self.pins['Pin8']), (self.pins['Pin1'], self.pins['Pin7']), (self.pins['Pin1'], self.pins['Pin5']), (self.pins['Pin8'], self.pins['Pin5']), (self.pins['Pin2'], self.pins['Pin5']), (self.pins['Pin7'], self.pins['Pin5']), (self.pins['Pin5'], self.pins['Pin6'])],
                 'off': []
             },
             'usage_arrow': {
-                'turbo': [(self.pins['Pin3'], self.pins['Pin7'])],
-                'norm': [(self.pins['Pin4'], self.pins['Pin7'])]
+                'turbo': [(self.pins['Pin3'], self.pins['Pin5'])],
+                'norm': [(self.pins['Pin4'], self.pins['Pin5'])],
+                'off': []
             },
             'temp_left_digit': {
-                'zero': [],
-                'one': [(self.pins['Pin7'], self.pins['Pin6']), (self.pins['Pin5'], self.pins['Pin6'])]
+                0: [],
+                1: [(self.pins['Pin5'], self.pins['Pin7']), (self.pins['Pin8'], self.pins['Pin7'])]
             },
             'temp_middle_digit': {
-                0: [(self.pins['Pin1'], self.pins['Pin3']), (self.pins['Pin2'], self.pins['Pin3']), (self.pins['Pin4'], self.pins['Pin3']), (self.pins['Pin5'], self.pins['Pin3']), (self.pins['Pin6'], self.pins['Pin3']), (self.pins['Pin7'], self.pins['Pin3'])],
+                0: [(self.pins['Pin1'], self.pins['Pin3']), (self.pins['Pin2'], self.pins['Pin3']), (self.pins['Pin4'], self.pins['Pin3']), (self.pins['Pin8'], self.pins['Pin3']), (self.pins['Pin7'], self.pins['Pin3']), (self.pins['Pin5'], self.pins['Pin3'])],
                 1: [(self.pins['Pin2'], self.pins['Pin3']), (self.pins['Pin4'], self.pins['Pin3'])],
-                2: [(self.pins['Pin1'], self.pins['Pin3']), (self.pins['Pin2'], self.pins['Pin3']), (self.pins['Pin5'], self.pins['Pin3']), (self.pins['Pin7'], self.pins['Pin3']), (self.pins['Pin8'], self.pins['Pin3'])],
-                3: [(self.pins['Pin1'], self.pins['Pin3']), (self.pins['Pin2'], self.pins['Pin3']), (self.pins['Pin4'], self.pins['Pin3']), (self.pins['Pin5'], self.pins['Pin3']), (self.pins['Pin8'], self.pins['Pin3'])],
-                4: [(self.pins['Pin2'], self.pins['Pin3']), (self.pins['Pin4'], self.pins['Pin3']), (self.pins['Pin7'], self.pins['Pin3']), (self.pins['Pin8'], self.pins['Pin3'])],
-                5: [(self.pins['Pin1'], self.pins['Pin3']), (self.pins['Pin4'], self.pins['Pin3']), (self.pins['Pin5'], self.pins['Pin3']), (self.pins['Pin7'], self.pins['Pin3']), (self.pins['Pin8'], self.pins['Pin3'])],
-                6: [(self.pins['Pin1'], self.pins['Pin3']), (self.pins['Pin4'], self.pins['Pin3']), (self.pins['Pin5'], self.pins['Pin3']), (self.pins['Pin6'], self.pins['Pin3']), (self.pins['Pin7'], self.pins['Pin3']), (self.pins['Pin8'], self.pins['Pin3'])],
+                2: [(self.pins['Pin1'], self.pins['Pin3']), (self.pins['Pin2'], self.pins['Pin3']), (self.pins['Pin8'], self.pins['Pin3']), (self.pins['Pin7'], self.pins['Pin3']), (self.pins['Pin6'], self.pins['Pin3'])],
+                3: [(self.pins['Pin1'], self.pins['Pin3']), (self.pins['Pin2'], self.pins['Pin3']), (self.pins['Pin4'], self.pins['Pin3']), (self.pins['Pin8'], self.pins['Pin3']), (self.pins['Pin6'], self.pins['Pin3'])],
+                4: [(self.pins['Pin2'], self.pins['Pin3']), (self.pins['Pin4'], self.pins['Pin3']), (self.pins['Pin5'], self.pins['Pin3']), (self.pins['Pin6'], self.pins['Pin3'])],
+                5: [(self.pins['Pin1'], self.pins['Pin3']), (self.pins['Pin4'], self.pins['Pin3']), (self.pins['Pin8'], self.pins['Pin3']), (self.pins['Pin7'], self.pins['Pin3']), (self.pins['Pin6'], self.pins['Pin3'])],
+                6: [(self.pins['Pin1'], self.pins['Pin3']), (self.pins['Pin4'], self.pins['Pin3']), (self.pins['Pin8'], self.pins['Pin3']), (self.pins['Pin7'], self.pins['Pin3']), (self.pins['Pin5'], self.pins['Pin3']), (self.pins['Pin6'], self.pins['Pin3'])],
                 7: [(self.pins['Pin1'], self.pins['Pin3']), (self.pins['Pin2'], self.pins['Pin3']), (self.pins['Pin4'], self.pins['Pin3'])],
-                8: [(self.pins['Pin1'], self.pins['Pin3']), (self.pins['Pin2'], self.pins['Pin3']), (self.pins['Pin4'], self.pins['Pin3']), (self.pins['Pin5'], self.pins['Pin3']), (self.pins['Pin6'], self.pins['Pin3']), (self.pins['Pin7'], self.pins['Pin3']), (self.pins['Pin8'], self.pins['Pin3'])],
-                9: [(self.pins['Pin1'], self.pins['Pin3']), (self.pins['Pin2'], self.pins['Pin3']), (self.pins['Pin4'], self.pins['Pin3']), (self.pins['Pin5'], self.pins['Pin3']), (self.pins['Pin7'], self.pins['Pin3']), (self.pins['Pin8'], self.pins['Pin3'])]
+                8: [(self.pins['Pin1'], self.pins['Pin3']), (self.pins['Pin2'], self.pins['Pin3']), (self.pins['Pin4'], self.pins['Pin3']), (self.pins['Pin8'], self.pins['Pin3']), (self.pins['Pin7'], self.pins['Pin3']), (self.pins['Pin5'], self.pins['Pin3']), (self.pins['Pin6'], self.pins['Pin3'])],
+                9: [(self.pins['Pin1'], self.pins['Pin3']), (self.pins['Pin2'], self.pins['Pin3']), (self.pins['Pin4'], self.pins['Pin3']), (self.pins['Pin8'], self.pins['Pin3']), (self.pins['Pin5'], self.pins['Pin3']), (self.pins['Pin6'], self.pins['Pin3'])]
             },
             'temp_right_digit': {
-                0: [(self.pins['Pin1'], self.pins['Pin4']), (self.pins['Pin2'], self.pins['Pin4']), (self.pins['Pin3'], self.pins['Pin4']), (self.pins['Pin5'], self.pins['Pin2']), (self.pins['Pin6'], self.pins['Pin1']), (self.pins['Pin7'], self.pins['Pin4'])],
+                0: [(self.pins['Pin1'], self.pins['Pin4']), (self.pins['Pin2'], self.pins['Pin4']), (self.pins['Pin3'], self.pins['Pin4']), (self.pins['Pin8'], self.pins['Pin4']), (self.pins['Pin7'], self.pins['Pin4']), (self.pins['Pin5'], self.pins['Pin4'])],
                 1: [(self.pins['Pin2'], self.pins['Pin4']), (self.pins['Pin3'], self.pins['Pin4'])],
-                2: [(self.pins['Pin1'], self.pins['Pin4']), (self.pins['Pin2'], self.pins['Pin4']), (self.pins['Pin5'], self.pins['Pin4']), (self.pins['Pin6'], self.pins['Pin4']), (self.pins['Pin8'], self.pins['Pin4'])],
-                3: [(self.pins['Pin1'], self.pins['Pin4']), (self.pins['Pin2'], self.pins['Pin4']), (self.pins['Pin3'], self.pins['Pin4']), (self.pins['Pin5'], self.pins['Pin4']), (self.pins['Pin8'], self.pins['Pin4'])],
-                4: [(self.pins['Pin2'], self.pins['Pin4']), (self.pins['Pin3'], self.pins['Pin4']), (self.pins['Pin7'], self.pins['Pin4']), (self.pins['Pin8'], self.pins['Pin4'])],
-                5: [(self.pins['Pin1'], self.pins['Pin4']), (self.pins['Pin3'], self.pins['Pin4']), (self.pins['Pin5'], self.pins['Pin4']), (self.pins['Pin7'], self.pins['Pin4']), (self.pins['Pin8'], self.pins['Pin4'])],
-                6: [(self.pins['Pin1'], self.pins['Pin4']), (self.pins['Pin3'], self.pins['Pin4']), (self.pins['Pin5'], self.pins['Pin4']), (self.pins['Pin6'], self.pins['Pin4']), (self.pins['Pin7'], self.pins['Pin4']), (self.pins['Pin8'], self.pins['Pin4'])],
+                2: [(self.pins['Pin1'], self.pins['Pin4']), (self.pins['Pin2'], self.pins['Pin4']), (self.pins['Pin8'], self.pins['Pin4']), (self.pins['Pin7'], self.pins['Pin4']), (self.pins['Pin6'], self.pins['Pin4'])],
+                3: [(self.pins['Pin1'], self.pins['Pin4']), (self.pins['Pin2'], self.pins['Pin4']), (self.pins['Pin3'], self.pins['Pin4']), (self.pins['Pin8'], self.pins['Pin4']), (self.pins['Pin6'], self.pins['Pin4'])],
+                4: [(self.pins['Pin2'], self.pins['Pin4']), (self.pins['Pin3'], self.pins['Pin4']), (self.pins['Pin5'], self.pins['Pin4']), (self.pins['Pin6'], self.pins['Pin4'])],
+                5: [(self.pins['Pin1'], self.pins['Pin4']), (self.pins['Pin3'], self.pins['Pin4']), (self.pins['Pin8'], self.pins['Pin4']), (self.pins['Pin5'], self.pins['Pin4']), (self.pins['Pin6'], self.pins['Pin4'])],
+                6: [(self.pins['Pin1'], self.pins['Pin4']), (self.pins['Pin3'], self.pins['Pin4']), (self.pins['Pin8'], self.pins['Pin4']), (self.pins['Pin7'], self.pins['Pin4']), (self.pins['Pin5'], self.pins['Pin4']), (self.pins['Pin6'], self.pins['Pin4'])],
                 7: [(self.pins['Pin1'], self.pins['Pin4']), (self.pins['Pin2'], self.pins['Pin4']), (self.pins['Pin3'], self.pins['Pin4'])],
-                8: [(self.pins['Pin1'], self.pins['Pin4']), (self.pins['Pin2'], self.pins['Pin4']), (self.pins['Pin3'], self.pins['Pin4']), (self.pins['Pin5'], self.pins['Pin4']), (self.pins['Pin6'], self.pins['Pin4']), (self.pins['Pin7'], self.pins['Pin4']), (self.pins['Pin8'], self.pins['Pin4'])],
-                9: [(self.pins['Pin1'], self.pins['Pin4']), (self.pins['Pin2'], self.pins['Pin4']), (self.pins['Pin3'], self.pins['Pin4']), (self.pins['Pin5'], self.pins['Pin4']), (self.pins['Pin7'], self.pins['Pin4']), (self.pins['Pin8'], self.pins['Pin4'])]
+                8: [(self.pins['Pin1'], self.pins['Pin4']), (self.pins['Pin2'], self.pins['Pin4']), (self.pins['Pin3'], self.pins['Pin4']), (self.pins['Pin8'], self.pins['Pin4']), (self.pins['Pin7'], self.pins['Pin4']), (self.pins['Pin5'], self.pins['Pin4']), (self.pins['Pin6'], self.pins['Pin4'])],
+                9: [(self.pins['Pin1'], self.pins['Pin4']), (self.pins['Pin2'], self.pins['Pin4']), (self.pins['Pin3'], self.pins['Pin4']), (self.pins['Pin8'], self.pins['Pin4']), (self.pins['Pin5'], self.pins['Pin4']), (self.pins['Pin6'], self.pins['Pin4'])]
             },
             'ram_bar': {
                 'off': [],
-                'one': [(self.pins['Pin1'], self.pins['Pin8'])],
-                'two': [(self.pins['Pin2'], self.pins['Pin8'])],
-                'three': [(self.pins['Pin3'], self.pins['Pin8'])],
-                'four': [(self.pins['Pin4'], self.pins['Pin8'])],
-                'five': [(self.pins['Pin5'], self.pins['Pin8'])],
-                'six': [(self.pins['Pin6'], self.pins['Pin8'])]
+                'one': [(self.pins['Pin1'], self.pins['Pin6'])],
+                'two': [(self.pins['Pin2'], self.pins['Pin6']), (self.pins['Pin1'], self.pins['Pin6'])],
+                'three': [(self.pins['Pin3'], self.pins['Pin6']), (self.pins['Pin2'], self.pins['Pin6']), (self.pins['Pin1'], self.pins['Pin6'])],
+                'four': [(self.pins['Pin4'], self.pins['Pin6']), (self.pins['Pin3'], self.pins['Pin6']), (self.pins['Pin2'], self.pins['Pin6']), (self.pins['Pin1'], self.pins['Pin6'])],
+                'five': [(self.pins['Pin8'], self.pins['Pin6']), (self.pins['Pin4'], self.pins['Pin6']), (self.pins['Pin3'], self.pins['Pin6']), (self.pins['Pin2'], self.pins['Pin6']), (self.pins['Pin1'], self.pins['Pin6'])],
+                'six': [(self.pins['Pin7'], self.pins['Pin6']), (self.pins['Pin8'], self.pins['Pin6']), (self.pins['Pin4'], self.pins['Pin6']), (self.pins['Pin3'], self.pins['Pin6']), (self.pins['Pin2'], self.pins['Pin6']), (self.pins['Pin1'], self.pins['Pin6'])]
             }
         }
 
@@ -133,10 +141,16 @@ class LEDDisplay:
     def update_display(self):
         while not self.stop_event.is_set():
             self.clear_segments()
-            self.display_segment(self.segment_mappings['left_digit'][self.left_number[0]])
-            self.display_segment(self.segment_mappings['right_digit'][self.right_number[0]])
-            self.display_segment(self.segment_mappings['percent_symbol'][self.percent_symbol[0]])
-            self.display_segment(self.segment_mappings['indicator_light'][self.indicator_light[0]])
+            self.display_segment(self.segment_mappings['voltage_bar'][self.voltage_bar[0]])
+            self.display_segment(self.segment_mappings['capacity_left_digit'][self.capacity_left_digit[0]])
+            self.display_segment(self.segment_mappings['capacity_middle_digit'][self.capacity_middle_digit[0]])
+            self.display_segment(self.segment_mappings['capacity_right_digit'][self.capacity_right_digit[0]])
+            self.display_segment(self.segment_mappings['misc_lights'][self.misc_lights[0]])
+            self.display_segment(self.segment_mappings['usage_arrow'][self.usage_arrow[0]])
+            self.display_segment(self.segment_mappings['temp_left_digit'][self.temp_left_digit[0]])
+            self.display_segment(self.segment_mappings['temp_middle_digit'][self.temp_middle_digit[0]])
+            self.display_segment(self.segment_mappings['temp_right_digit'][self.temp_right_digit[0]])
+            self.display_segment(self.segment_mappings['ram_bar'][self.ram_bar[0]])
             sleep(self.REFRESH_RATE)
 
     def get_ram_usage(self):
@@ -170,6 +184,7 @@ class LEDDisplay:
     def read_data(self):
         while not self.stop_event.is_set():
             try:
+                self.misc_lights[0] = 'on'
                 with open("/sys/class/thermal/thermal_zone0/temp", "r") as file:
                     temp = int(file.read()) / 1000  # Convert to Celsius
                 # Assuming you want to display the temperature in three digits
@@ -181,9 +196,9 @@ class LEDDisplay:
                 # Display CPU usage on LED segments
                 # Determine percent symbol status based on CPU usage
                 if cpu_usage == 100:
-                    self.usage_arrow[0] = 'up'  # Set to on when CPU usage is 100%
+                    self.usage_arrow[0] = 'turbo'  # Set to on when CPU usage is 100%
                 else:
-                    self.usage_arrow[0] = 'down'
+                    self.usage_arrow[0] = 'norm'
 
                 with open(self.BATTERY_FILE_PATH, 'r') as file:
                     data = json.load(file)
@@ -200,8 +215,8 @@ class LEDDisplay:
             sleep(1)
 
     def start(self):
-        Thread(target=self.update_display, daemon=True).start()
         Thread(target=self.read_data, daemon=True).start()
+        Thread(target=self.update_display, daemon=True).start()
 
     def stop(self):
         self.stop_event.set()
